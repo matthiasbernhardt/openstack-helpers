@@ -12,6 +12,14 @@ basename="$(basename "$0")"
 query_project_id="${1:-$OS_PROJECT_ID}"
 query_regions=(cbk dbl)
 
+openstack_version="$(openstack --version 2>&1)"
+case "$openstack_version" in
+  "openstack 3.16.0") ;;
+  "openstack 3.17.0") ;;
+  *)
+  echo "WARNING: script not tested with version $openstack_version"
+esac
+
 get_project_name() {
     openstack project show "$1" -f value -c name | awk '{print $1}' || true
 }
@@ -46,14 +54,14 @@ usage_check() {
   local warn_ram=""
   for region in "${query_regions[@]}" ; do
     export OS_REGION_NAME="$region"
-    local usage=($(openstack limits show --absolute -f value -c Value --project $query_project_id))
+    local usage=($(openstack limits show --absolute -f value --project $query_project_id | sort | awk '{print $2}'))
     local volumes_size_sum="$(openstack volume list -f value -c Size --project  $query_project_id | awk '{sum+=$1} END {print sum}')" # Workaround for totalGigabytesUsed
-    usage_cores="${usage[10]:-0}" # totalCoresUsed
-    usage_fips="${usage[13]:-0}" # totalFloatingIpsUsed
-    #usage_vs="${usage[28]:-0}" # totalGigabytesUsed (wrong)
+    usage_cores="${usage[20]:-0}" # totalCoresUsed
+    usage_fips="${usage[21]:-0}" # totalFloatingIpsUsed
+    #usage_vs="${usage[22]:-0}" # totalGigabytesUsed (wrong)
     usage_vs="${volumes_size_sum:-0}" # Workaround for totalGigabytesUsed
-    usage_instances="${usage[14]:-0}" # totalInstancesUsed
-    usage_ram="$((${usage[11]:-0}/1024))" # totalRamUsed
+    usage_instances="${usage[23]:-0}" # totalInstancesUsed
+    usage_ram="$((${usage[24]:-0}/1024))" # totalRamUsed
     usage_fips=$(openstack floating ip list -f value --project $query_project_id | wc -l | sed -e 's/ //g')
     if [[ ${usage_cores} != $((usage_ram/4)) ]] ; then warn_ram="!!!" ; fi 
     echo -n "$delimiter$(echo -n "$OS_REGION_NAME" | tr "[:lower:]" "[:upper:]"): ${usage_cores} vCPUs (${usage_instances} Inst.) / ${usage_ram} GB RAM${warn_ram} / ${usage_fips} FIPs / ${usage_vs} GB VS"

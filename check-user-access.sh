@@ -21,14 +21,18 @@ for userid in ${userids[@]} ; do
   echo "user: $username ($userid)"
 
   default_project_id="$(openstack user show -f value -c default_project_id $userid)"
-  default_project_name="$(openstack project show -f value -c name $default_project_id)"
-  echo "default_project: $default_project_name ($default_project_id)"
+  if [ -n "$default_project_id" ] ; then
+    default_project_name="$(openstack project show -f value -c name $default_project_id)"
+    echo "default_project: $default_project_name ($default_project_id)"
+  else
+    echo "default_project: - (unset)"
+  fi
 
   direct_projectids="$(openstack role assignment list -f value -c Project -c Role --user "$userid" | awk  '$1=="'"${roleid_operator}"'" { print $2 }' | tr "\n" " ")"
   echo "direct projectids: $direct_projectids"
 
   declare -A groupids2names
-  eval groupids2names=($(openstack group list -f value --user "$userid" | sed -nEe 's/^([0-9a-z]{32}) ([-_a-zA-Z0-9]+)$/[\1]=\2/p'))
+  eval groupids2names=($(openstack group list -f value --user "$userid" | sed -nEe 's/^([0-9a-z]{32}) ([-+@_.a-zA-Z0-9]+)$/[\1]=\2/p'))
   groupids="${!groupids2names[*]}"
   echo "groupids: $groupids"
   unset groups_projectids

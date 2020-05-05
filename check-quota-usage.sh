@@ -9,7 +9,7 @@
 # usage: CBK: xx vCPUs (x Inst.) / xx GB RAM / xx FIPs / xx GB VS | DBL: xx vCPUs (x Inst.) / xx GB RAM / xx FIPs / xx GB VS
 
 basename="$(basename "$0")"
-query_project_id="${1:-$OS_PROJECT_ID}"
+query_project="${1:-$OS_PROJECT_ID}"
 query_regions=(cbk dbl)
 
 openstack_version="$(openstack --version 2>&1)"
@@ -19,10 +19,6 @@ case "$openstack_version" in
   *)
   echo "WARNING: script not tested with version $openstack_version"
 esac
-
-get_project_name() {
-    openstack project show "$1" -f value -c name | awk '{print $1}' || true
-}
 
 quota_check() {
   local SAVE_OS_REGION_NAME=$OS_REGION_NAME
@@ -73,7 +69,10 @@ usage_check() {
 }
 
 
-echo "# Project $(get_project_name "$query_project_id") ($query_project_id)"
+query_project_info=($(openstack project show -f value -c id -c name $query_project))
+query_project_id="${query_project_info[0]}"
+query_project_name="${query_project_info[1]}"
+echo "# Project $query_project_name ($query_project_id)"
 
 if [[ $basename =~ "quota" ]] ; then
   quota_check "${@}"

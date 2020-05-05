@@ -2,6 +2,16 @@
 #
 # 2020-02 m.bernhardt@syseleven.de
 #
+# https://netbox.syseleven.net/ipam/prefixes/?q=&role=cloudgw-pool
+#
+# 185.56.128.0/22   - 185.56.129.255/22  cbk
+# 185.56.132.0/22   - 185.56.133.255/22  cbk
+# 195.192.128.0/21  - 195.192.131.255/21 dbl
+# 185.46.136.192/26 - 185.46.136.255/26  ybk
+# 151.252.44.64/26  - 151.252.44.127/26  zbk
+#
+# echo "https://netbox.syseleven.net/ipam/prefixes/?q=$(echo $ip | sed -e 's/:/%3A/g')"
+#
 
 case "$1" in "-v"|"-d" ) debug="y" ; shift ;; "-q" ) debug="n" ; shift ;; esac
 #if [ -z "$debug" ] ; then if tty -s ; then debug="y" ; fi ; fi
@@ -29,7 +39,7 @@ for fip in "${query_fips[@]}" ; do
   done
 
   if [ -z "$port_id" ] ; then
-    iecho "$fip not found in any region"
+    iecho "$fip not found in any region -> https://netbox.syseleven.net/ipam/prefixes/?q=$(echo $fip | sed -e 's/:/%3A/g')"
     break
   fi
 

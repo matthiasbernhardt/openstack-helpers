@@ -9,15 +9,17 @@ if [ $BASH_VERSINFO -lt 4 ] ; then
   exit 1
 fi
 
-userids=("$@")
+users=("$@")
 
 declare -A id2role role2id
 #eval id2role=(`openstack role list -f value | sed -nEe 's/^([0-9a-z]{32}) ([-_a-zA-Z0-9]+)$/[\1]=\2/p'`)
 eval role2id=(`openstack role list -f value | sed -nEe 's/^([0-9a-z]{32}) ([-_a-zA-Z0-9]+)$/[\2]=\1/p'`)
 
 roleid_operator="${role2id[operator]}"
-for userid in ${userids[@]} ; do
-  username="$(openstack user show -f value -c name $userid)"
+for user in ${users[@]} ; do
+  userinfo=($(openstack user show -f value -c id -c name $user))
+  userid="${userinfo[0]}"
+  username="${userinfo[1]}"
   echo "user: $username ($userid)"
 
   default_project_id="$(openstack user show -f value -c default_project_id $userid)"

@@ -1,16 +1,8 @@
 #!/bin/bash
 #
-# 2020-02 m.bernhardt@syseleven.de
+# 2020…2021 M.Bernhardt, SysEleven GmbH, Berlin, Germany
 #
-# https://netbox.syseleven.net/ipam/prefixes/?q=&role=cloudgw-pool
-#
-# 185.56.128.0/22   - 185.56.129.255/22  cbk
-# 185.56.132.0/22   - 185.56.133.255/22  cbk
-# 195.192.128.0/21  - 195.192.131.255/21 dbl
-# 185.46.136.192/26 - 185.46.136.255/26  ybk
-# 151.252.44.64/26  - 151.252.44.127/26  zbk
-#
-# echo "https://netbox.syseleven.net/ipam/prefixes/?q=$(echo $ip | sed -e 's/:/%3A/g')"
+# find resources related to a floating ip address
 #
 
 case "$1" in "-v"|"-d" ) debug="y" ; shift ;; "-q" ) debug="n" ; shift ;; esac
@@ -28,6 +20,8 @@ query_regions=(cbk dbl)
 
 for fip in "${query_fips[@]}" ; do
 
+  decho "looking for $fip"
+
   for try_region in "${query_regions[@]}" ; do
     port_id=$(dsexec openstack --os-region "$try_region" floating ip show -f value -c port_id "$fip" )
     decho "port_id:$port_id"
@@ -39,7 +33,7 @@ for fip in "${query_fips[@]}" ; do
   done
 
   if [ -z "$port_id" ] ; then
-    iecho "$fip not found in any region -> https://netbox.syseleven.net/ipam/prefixes/?q=$(echo $fip | sed -e 's/:/%3A/g')"
+    iecho "$fip not found in any region"
     break
   fi
 
@@ -66,6 +60,17 @@ for fip in "${query_fips[@]}" ; do
     neutron:LOADBALANCERV2)
       iecho "lbaasv2 $port_device_id"
       project_id=$port_project_id
+      ;;
+    Octavia)
+      iecho "octavia $port_device_id"
+      loadbalancer_show=($(dexec openstack --os-region $region loadbalancer show -f value -c name -c project_id "${port_device_id##lb-}"))
+      decho "${loadbalancer_show[*]}"
+      loadbalancer_name="${loadbalancer_show[0]}"
+      decho "loadbalancer_name:$loadbalancer_name"
+      loadbalancer_project_id="${loadbalancer_show[1]}"
+      decho "loadbalancer_project_id:$loadbalancer_project_id"
+      iecho "octavia $port_device_id $loadbalancer_name"
+      project_id=$loadbalancer_project_id
       ;;
     *)
       iecho "clueless about $port_device_owner"

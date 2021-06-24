@@ -1,8 +1,8 @@
 #! /usr/bin/env bash
 #
-# show all projects with direct or indirect relation to a (list of) given user(s)
+# 2018…2021 M.Bernhardt, SysEleven GmbH, Berlin, Germany
 #
-# 2018 m.bernhardt@syseleven.de
+# show all projects with direct or indirect relation to a (list of) given user(s)
 
 if [ $BASH_VERSINFO -lt 4 ] ; then
   echo "panic: this script needs bash 4.x with support of associative arrays"
@@ -16,6 +16,7 @@ declare -A id2role role2id
 eval role2id=(`openstack role list -f value | sed -nEe 's/^([0-9a-z]{32}) ([-_a-zA-Z0-9]+)$/[\2]=\1/p'`)
 
 roleid_operator="${role2id[operator]}"
+roleid_viewer="${role2id[viewer]}"
 for user in ${users[@]} ; do
   userinfo=($(openstack user show -f value -c id -c name $user))
   userid="${userinfo[0]}"
@@ -30,7 +31,7 @@ for user in ${users[@]} ; do
     echo "default_project: - (unset)"
   fi
 
-  direct_projectids="$(openstack role assignment list -f value -c Project -c Role --user "$userid" | awk  '$1=="'"${roleid_operator}"'" { print $2 }' | tr "\n" " ")"
+  direct_projectids="$(openstack role assignment list -f value -c Project -c Role --user "$userid" | awk  '$1=="'"${roleid_operator}"'" || $1=="'"${roleid_viewer}"'" { print $2 }' | sort | uniq | tr "\n" " ")"
   echo "direct projectids: $direct_projectids"
 
   declare -A groupids2names
@@ -42,7 +43,7 @@ for user in ${users[@]} ; do
     for groupid in $groupids ; do
       groupname=${groupids2names[$groupid]}
       echo "  group: $groupname ($groupid)"
-      projectids="$(openstack role assignment list -f value -c Role -c Project --group "$groupid" | awk  '$1=="'"${roleid_operator}"'" { print $2 }' | tr "\n" " ")"
+      projectids="$(openstack role assignment list -f value -c Role -c Project --group "$groupid" | awk  '$1=="'"${roleid_operator}"'" || $1=="'"${roleid_viewer}"'" { print $2 }' | sort | uniq | tr "\n" " ")"
       echo "  group projectids: $projectids"
       groups_projectids+="$projectids"
     done

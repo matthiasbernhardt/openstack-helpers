@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# 2018 m.bernhardt@syseleven.de
+# 2018…2021 M.Bernhardt, SysEleven GmbH, Berlin, Germany
 #
 # Check and show quota and usage for all regions conveniently for comparison with OPENSTACK_QUOTA_COMPUTE_STACK
 #
@@ -16,6 +16,7 @@ openstack_version="$(openstack --version 2>&1)"
 case "$openstack_version" in
   "openstack 3.16.0") ;;
   "openstack 3.17.0") ;;
+  "openstack 4.0.0") ;;
   *)
   echo "WARNING: script not tested with version $openstack_version"
 esac

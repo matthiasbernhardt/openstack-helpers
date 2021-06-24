@@ -11,7 +11,9 @@ else
   # execute if the variable is empty or contains only spaces
   #randomstring=$(cat /dev/urandom | env LC_CTYPE=C tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
   #password4ss=$randomstring
-  password4ss="$(pwgen 32 1)"
+  password4ss="$(pwgen 32 1)" # intentionally refrained from -s to avoid problems, see also https://xkcd.com/936/
+  # https://security.stackexchange.com/questions/6095/xkcd-936-short-complex-password-or-long-dictionary-passphrase
+  # https://www.baekdal.com/insights/password-security-usability
 fi
 generatedsecretsurl="$(curl -s -X POST -d "plain&secret=$password4ss" "https://secrets.syseleven.de/" )"
 

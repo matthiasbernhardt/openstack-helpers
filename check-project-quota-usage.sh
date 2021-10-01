@@ -10,7 +10,8 @@
 
 basename="$(basename "$0")"
 query_project="${1:-$OS_PROJECT_ID}"
-query_regions=(cbk dbl)
+#query_regions=(cbk dbl fes)
+query_regions=($(openstack region list -f value -c Region | grep -v infra))
 
 openstack_version="$(openstack --version 2>&1)"
 case "$openstack_version" in

@@ -52,14 +52,21 @@ quota_check() {
   local warn_ram=""
   local quota_yml="$($os_quota show $query_project_id)"
   test -z "$quota_yml" && echo "quota check failed" && exit 1
-  result_regions=($(echo "$quota_yml" | yq r -j -- - | jq -r 'keys | .[]'))
+  #result_regions=($(echo "$quota_yml" | yq r -j -- - | jq -r 'keys | .[]'))
+  result_regions=($(echo "$quota_yml" | yq e 'keys | .[]' -))
   for region in "${result_regions[@]}" ; do
-    quota_cores="$(echo "$quota_yml" | yq r - "$region"'."compute.cores"' -t)"
-    quota_fips="$(echo "$quota_yml" | yq r - "$region"'."network.floatingips"' -t)"
-    quota_vs="$(echo "$quota_yml" | yq r - "$region"'."volume.space_gb"' -t)"
-    quota_instances="$(echo "$quota_yml" | yq r - "$region"'."compute.instances"' -t)"
-    quota_ram="$(($(echo "$quota_yml" | yq r - "$region"'."compute.ram_mb"' -t) /1024))"
-    quota_os_bytes="$(echo "$quota_yml" | yq r - "$region"'."s3.space_bytes"' -t)"
+    #quota_cores="$(echo "$quota_yml" | yq r - "$region"'."compute.cores"' -t)"
+    #quota_fips="$(echo "$quota_yml" | yq r - "$region"'."network.floatingips"' -t)"
+    #quota_vs="$(echo "$quota_yml" | yq r - "$region"'."volume.space_gb"' -t)"
+    #quota_instances="$(echo "$quota_yml" | yq r - "$region"'."compute.instances"' -t)"
+    #quota_ram="$(($(echo "$quota_yml" | yq r - "$region"'."compute.ram_mb"' -t) /1024))"
+    #quota_os_bytes="$(echo "$quota_yml" | yq r - "$region"'."s3.space_bytes"' -t)"
+    quota_cores="$(echo "$quota_yml" | yq e ".$region"'."compute.cores"' -)"
+    quota_fips="$(echo "$quota_yml" | yq e ".$region"'."network.floatingips"' -)"
+    quota_vs="$(echo "$quota_yml" | yq e ".$region"'."volume.space_gb"' -)"
+    quota_instances="$(echo "$quota_yml" | yq e ".$region"'."compute.instances"' -)"
+    quota_ram="$(($(echo "$quota_yml" | yq e ".$region"'."compute.ram_mb"' -) /1024))"
+    quota_os_bytes="$(echo "$quota_yml" | yq e ".$region"'."s3.space_bytes"' -)"
     quota_os="$(bytes_to_gib $quota_os_bytes)"
     if [[ ${quota_cores} != ${quota_instances} ]] ; then warn_instances="/${quota_instances}" ; fi
     if [[ ${quota_cores} != $((quota_ram/4)) ]] ; then warn_ram="!!!" ; fi
@@ -77,14 +84,21 @@ usage_check() {
   local warn_ram=""
   local usage_yml="$($os_quota usage --filter compute,network,s3,volume $query_project_id)"
   test -z "$usage_yml" && echo "usage check failed" && exit 1
-  result_regions=($(echo "$usage_yml" | yq r -j -- - | jq -r 'keys | .[]'))
+  #result_regions=($(echo "$usage_yml" | yq r -j -- - | jq -r 'keys | .[]'))
+  result_regions=($(echo "$usage_yml" | yq e 'keys | .[]' -))
   for region in "${result_regions[@]}" ; do
-    usage_cores="$(echo "$usage_yml" | yq r - "$region"'."compute.cores"' -t)"
-    usage_fips="$(echo "$usage_yml" | yq r - "$region"'."network.floatingips"' -t)"
-    usage_vs="$(echo "$usage_yml" | yq r - "$region"'."volume.space_gb"' -t)"
-    usage_instances="$(echo "$usage_yml" | yq r - "$region"'."compute.instances"' -t)"
-    usage_ram="$(($(echo "$usage_yml" | yq r - "$region"'."compute.ram_mb"' -t) /1024))"
-    usage_os_bytes="$(echo "$usage_yml" | yq r - "$region"'."s3.space_bytes"' -t)"
+    #usage_cores="$(echo "$usage_yml" | yq r - "$region"'."compute.cores"' -t)"
+    #usage_fips="$(echo "$usage_yml" | yq r - "$region"'."network.floatingips"' -t)"
+    #usage_vs="$(echo "$usage_yml" | yq r - "$region"'."volume.space_gb"' -t)"
+    #usage_instances="$(echo "$usage_yml" | yq r - "$region"'."compute.instances"' -t)"
+    #usage_ram="$(($(echo "$usage_yml" | yq r - "$region"'."compute.ram_mb"' -t) /1024))"
+    #usage_os_bytes="$(echo "$usage_yml" | yq r - "$region"'."s3.space_bytes"' -t)"
+    usage_cores="$(echo "$usage_yml" | yq e ".$region"'."compute.cores"' -)"
+    usage_fips="$(echo "$usage_yml" | yq e ".$region"'."network.floatingips"' -)"
+    usage_vs="$(echo "$usage_yml" | yq e ".$region"'."volume.space_gb"' -)"
+    usage_instances="$(echo "$usage_yml" | yq e ".$region"'."compute.instances"' -)"
+    usage_ram="$(($(echo "$usage_yml" | yq e ".$region"'."compute.ram_mb"' -) /1024))"
+    usage_os_bytes="$(echo "$usage_yml" | yq e ".$region"'."s3.space_bytes"' -)"
     usage_os="$(bytes_to_gib $usage_os_bytes)"
     if [[ ${usage_cores} != $((usage_ram/4)) ]] ; then warn_ram="!!!" ; fi
     echo -e "$delimiter$(echo -n "$region" | tr "[:lower:]" "[:upper:]"): ${usage_cores} vCPUs (${usage_instances} Inst.) / ${usage_ram} GiB RAM${warn_ram} / ${usage_fips} FIPs / ${usage_vs} GiB VS / ${usage_os} GiB OS"
@@ -98,9 +112,9 @@ usage_check() {
 query_project_info=($(openstack project show -f value -c id -c name $query_project))
 query_project_id="${query_project_info[0]}"
 query_project_name="${query_project_info[1]}"
-echo "# Project $query_project_name ($query_project_id)"
 echo "https://smith.syseleven.de/cloud/projects/${query_project_id}/show"
 echo '```'
+echo "# Project $query_project_name ($query_project_id)"
 
 if [[ $basename =~ "change" ]] ; then
   quota_check '# before'

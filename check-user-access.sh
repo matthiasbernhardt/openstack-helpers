@@ -18,10 +18,11 @@ eval role2id=(`openstack role list -f value | sed -nEe 's/^([0-9a-z]{32}) ([-_a-
 roleid_operator="${role2id[operator]}"
 roleid_viewer="${role2id[viewer]}"
 for user in ${users[@]} ; do
-  userinfo=($(openstack user show -f value -c id -c name $user))
-  userid="${userinfo[0]}"
-  username="${userinfo[1]}"
-  echo "user: $username ($userid)"
+  userinfo=($(openstack user show -f value -c enabled -c id -c name $user))
+  userenabled="${userinfo[0]}"
+  userid="${userinfo[1]}"
+  username="${userinfo[2]}"
+  echo "user: ${username} (${userid}, enabled:${userenabled})"
 
   default_project_id="$(openstack user show -f value -c default_project_id $userid)"
   if [ -n "$default_project_id" ] ; then

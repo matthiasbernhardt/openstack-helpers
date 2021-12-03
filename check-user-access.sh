@@ -18,13 +18,15 @@ eval role2id=(`openstack role list -f value | sed -nEe 's/^([0-9a-z]{32}) ([-_a-
 roleid_operator="${role2id[operator]}"
 roleid_viewer="${role2id[viewer]}"
 for user in ${users[@]} ; do
-  userinfo=($(openstack user show -f value -c enabled -c id -c name $user))
-  userenabled="${userinfo[0]}"
-  userid="${userinfo[1]}"
-  username="${userinfo[2]}"
-  echo "user: ${username} (${userid}, enabled:${userenabled})"
+  user_json="$(openstack user show -f json $user)"
+  user_id="$(echo "$user_json" | jq -r ".id")"
+  user_name="$(echo "$user_json" | jq -r ".name")"
+  user_enabled="$(echo "$user_json" | jq -r ".enabled")"
+  default_project_id="$(echo "$user_json" | jq -r ".default_project_id")"
+  echo "user: ${user_name} (${user_id}, enabled:${user_enabled})"
 
-  default_project_id="$(openstack user show -f value -c default_project_id $userid)"
+  if [ -z "$user_name" -o -z "$user_id" ] ; then continue ; fi
+
   if [ -n "$default_project_id" ] ; then
     default_project_name="$(openstack project show -f value -c name $default_project_id)"
     echo "default_project: $default_project_name ($default_project_id)"
@@ -32,11 +34,11 @@ for user in ${users[@]} ; do
     echo "default_project: - (unset)"
   fi
 
-  direct_projectids="$(openstack role assignment list -f value -c Project -c Role --user "$userid" | awk  '$1=="'"${roleid_operator}"'" || $1=="'"${roleid_viewer}"'" { print $2 }' | sort | uniq | tr "\n" " ")"
+  direct_projectids="$(openstack role assignment list -f value -c Project -c Role --user "$user_id" | awk  '$1=="'"${roleid_operator}"'" || $1=="'"${roleid_viewer}"'" { print $2 }' | sort | uniq | tr "\n" " ")"
   echo "direct projectids: $direct_projectids"
 
   declare -A groupids2names
-  eval groupids2names=($(openstack group list -f value --user "$userid" | sed -nEe 's/^([0-9a-z]{32}) ([-+@_.a-zA-Z0-9]+)$/[\1]=\2/p'))
+  eval groupids2names=($(openstack group list -f value --user "$user_id" | sed -nEe 's/^([0-9a-z]{32}) ([-+@_.a-zA-Z0-9]+)$/[\1]=\2/p'))
   groupids="${!groupids2names[*]}"
   echo "groupids: $groupids"
   unset groups_projectids

@@ -27,6 +27,11 @@ for loadbalancer_id in ${loadbalancer_ids[@]} ; do
   loadbalancer_pools="$(echo "$loadbalancer_json" | jq -r '.pools' )"
   loadbalancer_pool_ids=($(echo "$loadbalancer_pools" | jq -r '.[].id' ))
   for pool_id in ${loadbalancer_pool_ids[@]} ; do
+    pool_json="$(neutron lbaas-pool-show -f json $pool_id 2>/dev/null)"
+    pool_healthmonitor_id=$(echo "$pool_json" | jq -r '.healthmonitor_id')
+    if [ -n "$pool_healthmonitor_id" ] ; then
+      echo "neutron lbaas-healthmonitor-delete $pool_healthmonitor_id"
+    fi
     echo "neutron lbaas-pool-delete $pool_id"
   done
   echo "neutron lbaas-loadbalancer-delete $loadbalancer_id"

@@ -12,7 +12,6 @@
 # usage: DBL: xx vCPUs (x Inst.) / xx GiB RAM / xx FIPs / xx GiB VS / xx GiB OS
 
 basename="$(basename "$0")"
-query_project="${1:-$OS_PROJECT_ID}"
 os_quota=~/repos/openstack/s11stack-manager/client/quota.py
 
 openstack_version="$(openstack --version 2>&1)"
@@ -20,6 +19,7 @@ case "$openstack_version" in
   "openstack 3.16.0") ;;
   "openstack 3.17.0") ;;
   "openstack 4.0.0") ;;
+  "openstack 6.0.0") ;;
   *)
   echo "WARNING: script not tested with version $openstack_version"
 esac
@@ -108,30 +108,32 @@ usage_check() {
   export OS_REGION_NAME="$SAVE_OS_REGION_NAME"
 }
 
+#query_project="${1:-$OS_PROJECT_ID}"
+for query_project in $@ ; do
+  query_project_info=($(openstack project show -f value -c id -c name $query_project))
+  query_project_id="${query_project_info[0]}"
+  query_project_name="${query_project_info[1]}"
+  echo "https://smith.syseleven.de/cloud/projects/${query_project_id}/show"
+  echo '```'
+  echo "# Project $query_project_name ($query_project_id)"
 
-query_project_info=($(openstack project show -f value -c id -c name $query_project))
-query_project_id="${query_project_info[0]}"
-query_project_name="${query_project_info[1]}"
-echo "https://smith.syseleven.de/cloud/projects/${query_project_id}/show"
-echo '```'
-echo "# Project $query_project_name ($query_project_id)"
+  if [[ $basename =~ "change" ]] ; then
+    quota_check '# before'
+    usage_check
+    while true ; do
+      read -sp '```' keypress ; printf '\r'
+      quota_check '# after'
+    done
+  fi
 
-if [[ $basename =~ "change" ]] ; then
-  quota_check '# before'
-  usage_check
-  while true ; do
-    read -sp '```' keypress ; printf '\r'
-    quota_check '# after'
-  done
-fi
+  if [[ $basename =~ "quota" ]] ; then
+    quota_check
+  fi
 
-if [[ $basename =~ "quota" ]] ; then
-  quota_check
-fi
+  if [[ $basename =~ "usage" ]] ; then
+    usage_check
+  fi
 
-if [[ $basename =~ "usage" ]] ; then
-  usage_check
-fi
-
-echo '```'
-
+  echo '```'
+done
+  

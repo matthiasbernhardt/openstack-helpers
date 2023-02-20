@@ -34,6 +34,13 @@ for user in ${users[@]} ; do
     echo "default_project: - (unset)"
   fi
 
+  # TODO: application credentials, user credentials, ssh keys, tokens
+  # openstack application credential list --user $user_id
+  # openstack credential list --user $user_id
+  # for region in ${regions[@]} ; do
+  #   openstack --os-region $region --os-username $user_id --os-password $password --os-project-id '' --os-project-name $projectname keypair list
+  # done
+
   direct_projectids="$(openstack role assignment list -f value -c Project -c Role --user "$user_id" | awk  '$1=="'"${roleid_operator}"'" || $1=="'"${roleid_viewer}"'" { print $2 }' | sort | uniq | tr "\n" " ")"
   echo "direct projectids: $direct_projectids"
 
@@ -45,7 +52,7 @@ for user in ${users[@]} ; do
   if [ -n "$groupids" ] ; then
     for groupid in $groupids ; do
       groupname=${groupids2names[$groupid]}
-      echo "  group: $groupname ($groupid)"
+      echo "  group: $groupname ($groupid) # openstack group remove user $groupname $user_name"
       projectids="$(openstack role assignment list -f value -c Role -c Project --group "$groupid" | awk  '$1=="'"${roleid_operator}"'" || $1=="'"${roleid_viewer}"'" { print $2 }' | sort | uniq | tr "\n" " ")"
       echo "  group projectids: $projectids"
       groups_projectids+="$projectids"

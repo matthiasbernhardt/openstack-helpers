@@ -12,7 +12,8 @@ for query_project in $@ ; do
     service_json="$( openstack vpn service show -f json $service_id )"
     service_name="$( echo "$service_json" | jq -r '.Name' )"
     service_ip="$( echo "$service_json" | jq -r '.external_v4_ip' )"
-    echo "openstack vpn ipsec service show $service_id # '$service_name' <- ${service_ip}"
+    service_subnet="$( echo "$service_json" | jq -r '.Subnet' )"
+    echo "openstack vpn service show $service_id # '$service_name' <- ${service_ip}"
 
     conn_ids=($( echo "$conns_json" | jq -r 'select(."VPN Service" == "'"$service_id"'" ) | .ID' | sort | uniq ))
     for conn_id in "${conn_ids[@]}" ; do
@@ -25,6 +26,7 @@ for query_project in $@ ; do
       conn_local_endpoint_group_id="$( echo "$conn_json" | jq -r '."Local Endpoint Group ID"' )"
       conn_peer_address="$( echo "$conn_json" | jq -r '."Peer Address"' )"
       conn_peer_id="$( echo "$conn_json" | jq -r '."Peer ID"' )"
+      conn_peer_cidrs="$( echo "$conn_json" | jq -r '."Peer CIDRs"' )"
       echo " openstack vpn ipsec site connection show $conn_id # '$conn_name' ${service_ip} -> ${conn_peer_address}"
   
       ike_json="$( openstack vpn ike policy show -f json $conn_ike_policy )"
@@ -34,11 +36,16 @@ for query_project in $@ ; do
       ipsec_json="$( openstack vpn ipsec policy show -f json $conn_ipsec_policy )"
       ipsec_name="$( echo "$ipsec_json" | jq -r '.Name' )"
       echo "  openstack vpn ipsec policy show $conn_ipsec_policy # '$ipsec_name'"
-  
-      local_endpoint_group_json="$( openstack vpn endpoint group show -f json $conn_local_endpoint_group_id )"
-      local_endpoint_group_name="$( echo "$local_endpoint_group_json" | jq -r '.Name' )"
-      local_endpoint_group_endpoints="$( echo "$local_endpoint_group_json" | jq -r '.Endpoints' )"
-      local_subnet_ids=($( echo "$local_endpoint_group_endpoints" | jq -r '.[]' ))
+ 
+      if [ -n "$conn_local_endpoint_group_id" -a "$conn_local_endpoint_group_id" != "null" ] ; then
+        local_endpoint_group_json="$( openstack vpn endpoint group show -f json $conn_local_endpoint_group_id )"
+        local_endpoint_group_name="$( echo "$local_endpoint_group_json" | jq -r '.Name' )"
+        local_endpoint_group_endpoints="$( echo "$local_endpoint_group_json" | jq -r '.Endpoints' )"
+        local_subnet_ids=($( echo "$local_endpoint_group_endpoints" | jq -r '.[]' ))
+      else
+        local_endpoint_group_name="service: Subnet"
+        local_subnet_ids=$service_subnet
+      fi
       local_networks=()
       for subnet_id in "${local_subnet_ids[@]}" ; do
         subnet_json="$( openstack subnet show -f json $subnet_id )"
@@ -49,9 +56,14 @@ for query_project in $@ ; do
       done
       echo "  openstack vpn endpoint group show $conn_local_endpoint_group_id # '$local_endpoint_group_name' <- ${local_networks[@]}"
   
-      peer_endpoint_group_json="$( openstack vpn endpoint group show -f json $conn_peer_endpoint_group_id )"
-      peer_endpoint_group_name="$( echo "$peer_endpoint_group_json" | jq -r '.Name' )"
-      peer_endpoint_group_endpoints="$( echo "$peer_endpoint_group_json" | jq -r '.Endpoints' )"
+      if [ -n "$conn_peer_endpoint_group_id" -a "$conn_peer_endpoint_group_id" != "null" ] ; then
+        peer_endpoint_group_json="$( openstack vpn endpoint group show -f json $conn_peer_endpoint_group_id )"
+        peer_endpoint_group_name="$( echo "$peer_endpoint_group_json" | jq -r '.Name' )"
+        peer_endpoint_group_endpoints="$( echo "$peer_endpoint_group_json" | jq -r '.Endpoints' )"
+      else
+        peer_endpoint_group_name="connection: Peer CIDRs"
+        peer_endpoint_group_endpoints="$conn_peer_cidrs"
+      fi
       peer_networks=($( echo "$peer_endpoint_group_endpoints" | jq -r '.[]' ))
       echo "  openstack vpn endpoint group show $conn_peer_endpoint_group_id # '$peer_endpoint_group_name' -> ${peer_networks[@]}"
     done

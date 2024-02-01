@@ -20,6 +20,7 @@ for project in ${projects[@]} ; do
   project_id="${project_info[0]}"
   project_name="${project_info[1]}"
   echo "project: $project_name ($project_id)"
+  if [ -z "$project_id" ] ; then continue ; fi
   for quota_file in "${quota_files[@]}" ; do 
     echo "quota: $quota_file"
     quota_yml="$(cat $quota_file)"

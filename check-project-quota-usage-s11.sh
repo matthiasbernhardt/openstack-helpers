@@ -117,6 +117,8 @@ for query_project in $@ ; do
   echo '```'
   echo "# Project $query_project_name ($query_project_id)"
 
+  if [ -z "$query_project_id" ] ; then continue ; fi
+
   if [[ $basename =~ "change" ]] ; then
     quota_check '# before'
     usage_check

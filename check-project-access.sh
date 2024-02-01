@@ -22,6 +22,7 @@ for project in ${projects[@]} ; do
   projectid="${projectinfo[0]}"
   projectname="${projectinfo[1]}"
   echo "project: $projectname ($projectid)"
+  if [ -z "$projectid" ] ; then continue ; fi
   userids="$(openstack role assignment list -f value -c User -c Role --project "$projectid" | awk  '$1=="'"${roleid_operator}"'" || $1=="'"${roleid_viewer}"'" { print $2 }'| sort | uniq | tr "\n" " " )"
   echo "userids: $userids"
   groupids="$(openstack role assignment list -f value -c Group -c Role --project "$projectid" | awk  '$1=="'"${roleid_operator}"'" || $1=="'"${roleid_viewer}"'" { print $2 }' | sort | uniq | tr "\n" " ")"

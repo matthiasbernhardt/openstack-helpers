@@ -7,6 +7,7 @@ if [[ "$1" == "-p" ]] ; then
     project_json="$(openstack project show -f json $project)"
     project_id="$(echo "$project_json" | jq -r ".id")"
     project_name="$(echo "$project_json" | jq -r ".name")"
+    if [ -z "$project_id" ] ; then continue ; fi
     loadbalancer_list="$(neutron lbaas-loadbalancer-list -f json 2>/dev/null)"
     loadbalancer_ids=($(echo "$loadbalancer_list" | jq -r '.[] | select(.tenant_id == "'"$project_id"'") | .id' ))
   done

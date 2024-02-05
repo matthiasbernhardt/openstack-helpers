@@ -30,13 +30,15 @@ for user in ${users[@]} ; do
   if [ -n "$default_project_id" ] ; then
     default_project_name="$(openstack project show -f value -c name $default_project_id)"
     echo "default_project: $default_project_name ($default_project_id)"
+    echo "# ~/repos/openstack/s11stack-manager/client/purge-project.py --all-regions --keep-users --keep-groups --keep-project $default_project_id # $default_project_name"
   else
     echo "default_project: - (unset)"
   fi
 
-  # TODO: application credentials, user credentials, ssh keys, tokens
-  # openstack application credential list --user $user_id
-  # openstack credential list --user $user_id
+  echo "# openstack application credential list --user $user_name"
+  echo "# openstack credential list --user $user_name"
+
+  # TODO: ssh keys, tokens
   # for region in ${regions[@]} ; do
   #   openstack --os-region $region --os-username $user_id --os-password $password --os-project-id '' --os-project-name $projectname keypair list
   # done
@@ -52,7 +54,14 @@ for user in ${users[@]} ; do
   if [ -n "$groupids" ] ; then
     for groupid in $groupids ; do
       groupname=${groupids2names[$groupid]}
-      echo "  group: $groupname ($groupid) # openstack group remove user $groupname $user_name"
+      echo "  group: $groupname ($groupid)"
+      group_member_count=$(openstack user list --group $groupid -f value | wc -l)
+      if [ $group_member_count -le 1 ] ; then
+        echo "    # openstack group remove user $groupname $user_name # POTENTIALLY ABANDONED"
+        echo "    # openstack user list --group $groupid # $groupname"
+      else
+        echo "    # openstack group remove user $groupname $user_name"
+      fi
       projectids="$(openstack role assignment list -f value -c Role -c Project --group "$groupid" | awk  '$1=="'"${roleid_operator}"'" || $1=="'"${roleid_viewer}"'" { print $2 }' | sort | uniq | tr "\n" " ")"
       echo "  group projectids: $projectids"
       groups_projectids+="$projectids"
@@ -65,5 +74,6 @@ for user in ${users[@]} ; do
     projectname="$(openstack project show -f value -c name $projectid)"
     echo "  project: $projectname ($projectid)"
   done
+
 done
 

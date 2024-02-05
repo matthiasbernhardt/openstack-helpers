@@ -49,6 +49,7 @@ quota_check() {
   local delimiter="quota "
   local denotion="$(echo "$@")"
   local warn_instances=""
+  local warn_cpu=""
   local warn_ram=""
   local quota_yml="$($os_quota show $query_project_id)"
   test -z "$quota_yml" && echo "quota check failed" && exit 1
@@ -68,10 +69,12 @@ quota_check() {
     quota_ram="$(($(echo "$quota_yml" | yq e ".$region"'."compute.ram_mb"' -) /1024))"
     quota_os_bytes="$(echo "$quota_yml" | yq e ".$region"'."s3.space_bytes"' -)"
     quota_os="$(bytes_to_gib $quota_os_bytes)"
-    if [[ ${quota_cores} != ${quota_instances} ]] ; then warn_instances="/${quota_instances}" ; fi
-    if [[ ${quota_cores} != $((quota_ram/4)) ]] ; then warn_ram="!!!" ; fi
-    echo -e "$delimiter$(echo -n "$region" | tr "[:lower:]" "[:upper:]"): ${quota_cores} vCPUs / ${quota_ram} GiB RAM${warn_ram} / ${quota_fips} FIPs / ${quota_vs} GiB VS / ${quota_os} GiB OS" "$@"
+    if [[ ${quota_cores} != ${quota_instances} ]] ; then warn_instances=" (${quota_instances} Inst.)" ; fi
+    if [[ ${quota_cores} -gt $((quota_ram/4)) ]] ; then warn_cpu="!!!" ; fi
+    if [[ ${quota_cores} -lt $((quota_ram/4)) ]] ; then warn_ram="!!!" ; fi
+    echo -e "$delimiter$(echo -n "$region" | tr "[:lower:]" "[:upper:]"): ${quota_cores} vCPUs${warn_cpu}${warn_instances} / ${quota_ram} GiB RAM${warn_ram} / ${quota_fips} FIPs / ${quota_vs} GiB VS / ${quota_os} GiB OS" "$@"
     warn_instances=""
+    warn_cpu=""
     warn_ram=""
   done
   export OS_REGION_NAME="$SAVE_OS_REGION_NAME"
@@ -81,6 +84,7 @@ usage_check() {
   local SAVE_OS_REGION_NAME=$OS_REGION_NAME
   local delimiter="usage "
   local denotion="$(echo "$@")"
+  local warn_cpu=""
   local warn_ram=""
   local usage_yml="$($os_quota usage --filter compute,network,s3,volume $query_project_id)"
   test -z "$usage_yml" && echo "usage check failed" && exit 1
@@ -100,8 +104,10 @@ usage_check() {
     usage_ram="$(($(echo "$usage_yml" | yq e ".$region"'."compute.ram_mb"' -) /1024))"
     usage_os_bytes="$(echo "$usage_yml" | yq e ".$region"'."s3.space_bytes"' -)"
     usage_os="$(bytes_to_gib $usage_os_bytes)"
-    if [[ ${usage_cores} != $((usage_ram/4)) ]] ; then warn_ram="!!!" ; fi
-    echo -e "$delimiter$(echo -n "$region" | tr "[:lower:]" "[:upper:]"): ${usage_cores} vCPUs (${usage_instances} Inst.) / ${usage_ram} GiB RAM${warn_ram} / ${usage_fips} FIPs / ${usage_vs} GiB VS / ${usage_os} GiB OS"
+    if [[ ${usage_cores} -gt $((usage_ram/4)) ]] ; then warn_cpu="!!!" ; fi
+    if [[ ${usage_cores} -lt $((usage_ram/4)) ]] ; then warn_ram="!!!" ; fi
+    echo -e "$delimiter$(echo -n "$region" | tr "[:lower:]" "[:upper:]"): ${usage_cores} vCPUs${warn_cpu} (${usage_instances} Inst.) / ${usage_ram} GiB RAM${warn_ram} / ${usage_fips} FIPs / ${usage_vs} GiB VS / ${usage_os} GiB OS"
+    warn_cpu=""
     warn_ram=""
   done
   #echo

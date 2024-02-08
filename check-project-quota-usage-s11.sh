@@ -67,8 +67,17 @@ quota_check() {
     quota_vs="$(echo "$quota_yml" | yq e ".$region"'."volume.space_gb"' -)"
     quota_instances="$(echo "$quota_yml" | yq e ".$region"'."compute.instances"' -)"
     quota_ram="$(($(echo "$quota_yml" | yq e ".$region"'."compute.ram_mb"' -) /1024))"
-    quota_os_bytes="$(echo "$quota_yml" | yq e ".$region"'."s3.space_bytes"' -)"
-    quota_os="$(bytes_to_gib $quota_os_bytes)"
+    quota_os_bytes_q="$(echo "$quota_yml" | yq e ".$region"'."s3.space_bytes"' -)"
+    quota_os_bytes_c="$(echo "$quota_yml" | yq e ".$region"'."objectstorage.space_bytes"' -)"
+    quota_os_q="$(bytes_to_gib $quota_os_bytes_q)"
+    quota_os_c="$(bytes_to_gib $quota_os_bytes_c)"
+    if [[ "$quota_os_q" == "?" ]] ; then
+      quota_os="$quota_os_c"
+    elif [[ "$quota_os_c" == "?" ]] ; then
+      quota_os="$quota_os_q"
+    else
+      quota_os="$quota_os_q+$quota_os_c"
+    fi
     if [[ ${quota_cores} != ${quota_instances} ]] ; then warn_instances=" (${quota_instances} Inst.)" ; fi
     if [[ ${quota_cores} -gt $((quota_ram/4)) ]] ; then warn_cpu="!!!" ; fi
     if [[ ${quota_cores} -lt $((quota_ram/4)) ]] ; then warn_ram="!!!" ; fi
@@ -86,7 +95,9 @@ usage_check() {
   local denotion="$(echo "$@")"
   local warn_cpu=""
   local warn_ram=""
-  local usage_yml="$($os_quota usage --filter compute,network,s3,volume $query_project_id)"
+  # TODO: when https://youtrack.syseleven.net/issue/os-18316/StackManager-API-filter-extension is implemented
+  #local usage_yml="$($os_quota usage --filter compute,network,s3,objectstorage,volume $query_project_id)"
+  local usage_yml="$($os_quota usage $query_project_id)"
   test -z "$usage_yml" && echo "usage check failed" && exit 1
   #result_regions=($(echo "$usage_yml" | yq r -j -- - | jq -r 'keys | .[]'))
   result_regions=($(echo "$usage_yml" | yq e 'keys | .[]' -))
@@ -102,8 +113,19 @@ usage_check() {
     usage_vs="$(echo "$usage_yml" | yq e ".$region"'."volume.space_gb"' -)"
     usage_instances="$(echo "$usage_yml" | yq e ".$region"'."compute.instances"' -)"
     usage_ram="$(($(echo "$usage_yml" | yq e ".$region"'."compute.ram_mb"' -) /1024))"
-    usage_os_bytes="$(echo "$usage_yml" | yq e ".$region"'."s3.space_bytes"' -)"
-    usage_os="$(bytes_to_gib $usage_os_bytes)"
+    #usage_os_bytes="$(echo "$usage_yml" | yq e ".$region"'."s3.space_bytes"' -)"
+    #usage_os="$(bytes_to_gib $usage_os_bytes)"
+    usage_os_bytes_q="$(echo "$usage_yml" | yq e ".$region"'."s3.space_bytes"' -)"
+    usage_os_bytes_c="$(echo "$usage_yml" | yq e ".$region"'."objectstorage.space_bytes"' -)"
+    usage_os_q="$(bytes_to_gib $usage_os_bytes_q)"
+    usage_os_c="$(bytes_to_gib $usage_os_bytes_c)"
+    if [[ "$usage_os_q" == "?" ]] ; then
+      usage_os="$usage_os_c"
+    elif [[ "$usage_os_c" == "?" ]] ; then
+      usage_os="$usage_os_q"
+    else
+      usage_os="$usage_os_q+$usage_os_c"
+    fi
     if [[ ${usage_cores} -gt $((usage_ram/4)) ]] ; then warn_cpu="!!!" ; fi
     if [[ ${usage_cores} -lt $((usage_ram/4)) ]] ; then warn_ram="!!!" ; fi
     echo -e "$delimiter$(echo -n "$region" | tr "[:lower:]" "[:upper:]"): ${usage_cores} vCPUs${warn_cpu} (${usage_instances} Inst.) / ${usage_ram} GiB RAM${warn_ram} / ${usage_fips} FIPs / ${usage_vs} GiB VS / ${usage_os} GiB OS"

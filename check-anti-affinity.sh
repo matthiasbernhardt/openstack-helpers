@@ -21,9 +21,10 @@ fi
 state="OK"
 rc=0
 
+server_list="$(dexec openstack server list $param_project -f value -c ID -c Name)"
 for infix in "$@" ; do
   decho "infix: $infix"
-  id_prefix_list="$(dexec openstack server list $param_project -f value -c ID -c Name | sed -ne 's/'"$infix"'.*$/ /p')"
+  id_prefix_list="$(echo "$server_list" | sed -ne 's/'"$infix"'.*$/ /p')"
   #decho "id_prefix_list: $id_prefix_list"
   prefixes=$(echo "$id_prefix_list" | cut -d " " -f 2 | sort | uniq)
   for prefix in $prefixes ; do

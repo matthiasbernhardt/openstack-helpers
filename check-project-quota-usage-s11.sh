@@ -138,12 +138,20 @@ usage_check() {
 
 #query_project="${1:-$OS_PROJECT_ID}"
 for query_project in $@ ; do
-  query_project_info=($(openstack project show -f value -c id -c name $query_project))
-  query_project_id="${query_project_info[0]}"
-  query_project_name="${query_project_info[1]}"
+  query_project_json="$(openstack project show -f json $query_project)"
+  query_project_id="$(echo "$query_project_json" | jq -r ".id")"
+  query_project_name="$(echo "$query_project_json" | jq -r ".name")"
+  query_project_parent_id="$(echo "$query_project_json" | jq -r ".parent_id")"
+  query_project_description="$(echo "$query_project_json" | jq -r ".description")"
+
+  if [[ "$query_project_id" == "$query_project_name" && "$query_project_parent_id" == "ccd6a18cd67945d7b6a637711a02b5d2" ]] ; then
+    # syseleven-openstack-cloud / Keystone domain for customer projects (NCS)
+    query_project_name="$query_project_description"
+  fi
+
   echo "https://smith.syseleven.de/cloud/projects/${query_project_id}/show"
   echo '```'
-  echo "# Project $query_project_name ($query_project_id)"
+  echo "# Project $query_project_id ($query_project_name)"
 
   if [ -z "$query_project_id" ] ; then continue ; fi
 
@@ -166,4 +174,4 @@ for query_project in $@ ; do
 
   echo '```'
 done
-  
+

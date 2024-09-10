@@ -53,22 +53,15 @@ quota_check() {
   local warn_ram=""
   local quota_yml="$($os_quota show $query_project_id)"
   test -z "$quota_yml" && echo "quota check failed" && exit 1
-  #result_regions=($(echo "$quota_yml" | yq r -j -- - | jq -r 'keys | .[]'))
   result_regions=($(echo "$quota_yml" | yq e 'keys | .[]' -))
   for region in "${result_regions[@]}" ; do
-    #quota_cores="$(echo "$quota_yml" | yq r - "$region"'."compute.cores"' -t)"
-    #quota_fips="$(echo "$quota_yml" | yq r - "$region"'."network.floatingips"' -t)"
-    #quota_vs="$(echo "$quota_yml" | yq r - "$region"'."volume.space_gb"' -t)"
-    #quota_instances="$(echo "$quota_yml" | yq r - "$region"'."compute.instances"' -t)"
-    #quota_ram="$(($(echo "$quota_yml" | yq r - "$region"'."compute.ram_mb"' -t) /1024))"
-    #quota_os_bytes="$(echo "$quota_yml" | yq r - "$region"'."s3.space_bytes"' -t)"
     quota_cores="$(echo "$quota_yml" | yq e ".$region"'."compute.cores"' -)"
     quota_fips="$(echo "$quota_yml" | yq e ".$region"'."network.floatingips"' -)"
     quota_vs="$(echo "$quota_yml" | yq e ".$region"'."volume.space_gb"' -)"
     quota_instances="$(echo "$quota_yml" | yq e ".$region"'."compute.instances"' -)"
     quota_ram="$(($(echo "$quota_yml" | yq e ".$region"'."compute.ram_mb"' -) /1024))"
-    quota_os_bytes_q="$(echo "$quota_yml" | yq e ".$region"'."s3.space_bytes"' -)"
-    quota_os_bytes_c="$(echo "$quota_yml" | yq e ".$region"'."objectstorage.space_bytes"' -)"
+    quota_os_bytes_q="$(echo "$quota_yml" | yq e ".$region"'.objectstorage[] | select( .type == "quobyte" ) | .space_bytes' -)"
+    quota_os_bytes_c="$(echo "$quota_yml" | yq e ".$region"'.objectstorage[] | select( .type == "ceph" ) | .space_bytes' -)"
     quota_os_q="$(bytes_to_gib $quota_os_bytes_q)"
     quota_os_c="$(bytes_to_gib $quota_os_bytes_c)"
     if [[ "$quota_os_q" == "?" ]] ; then
@@ -95,28 +88,18 @@ usage_check() {
   local denotion="$(echo "$@")"
   local warn_cpu=""
   local warn_ram=""
-  # TODO: when https://youtrack.syseleven.net/issue/os-18316/StackManager-API-filter-extension is implemented
-  #local usage_yml="$($os_quota usage --filter compute,network,s3,objectstorage,volume $query_project_id)"
-  local usage_yml="$($os_quota usage $query_project_id)"
+  local usage_yml="$($os_quota usage --filter compute,network,s3,objectstorage,volume $query_project_id)"
   test -z "$usage_yml" && echo "usage check failed" && exit 1
   #result_regions=($(echo "$usage_yml" | yq r -j -- - | jq -r 'keys | .[]'))
   result_regions=($(echo "$usage_yml" | yq e 'keys | .[]' -))
   for region in "${result_regions[@]}" ; do
-    #usage_cores="$(echo "$usage_yml" | yq r - "$region"'."compute.cores"' -t)"
-    #usage_fips="$(echo "$usage_yml" | yq r - "$region"'."network.floatingips"' -t)"
-    #usage_vs="$(echo "$usage_yml" | yq r - "$region"'."volume.space_gb"' -t)"
-    #usage_instances="$(echo "$usage_yml" | yq r - "$region"'."compute.instances"' -t)"
-    #usage_ram="$(($(echo "$usage_yml" | yq r - "$region"'."compute.ram_mb"' -t) /1024))"
-    #usage_os_bytes="$(echo "$usage_yml" | yq r - "$region"'."s3.space_bytes"' -t)"
     usage_cores="$(echo "$usage_yml" | yq e ".$region"'."compute.cores"' -)"
     usage_fips="$(echo "$usage_yml" | yq e ".$region"'."network.floatingips"' -)"
     usage_vs="$(echo "$usage_yml" | yq e ".$region"'."volume.space_gb"' -)"
     usage_instances="$(echo "$usage_yml" | yq e ".$region"'."compute.instances"' -)"
     usage_ram="$(($(echo "$usage_yml" | yq e ".$region"'."compute.ram_mb"' -) /1024))"
-    #usage_os_bytes="$(echo "$usage_yml" | yq e ".$region"'."s3.space_bytes"' -)"
-    #usage_os="$(bytes_to_gib $usage_os_bytes)"
-    usage_os_bytes_q="$(echo "$usage_yml" | yq e ".$region"'."s3.space_bytes"' -)"
-    usage_os_bytes_c="$(echo "$usage_yml" | yq e ".$region"'."objectstorage.space_bytes"' -)"
+    usage_os_bytes_q="$(echo "$usage_yml" | yq e ".$region"'.objectstorage[] | select( .type == "quobyte" ) | .space_bytes' -)"
+    usage_os_bytes_c="$(echo "$usage_yml" | yq e ".$region"'.objectstorage[] | select( .type == "ceph" ) | .space_bytes' -)"
     usage_os_q="$(bytes_to_gib $usage_os_bytes_q)"
     usage_os_c="$(bytes_to_gib $usage_os_bytes_c)"
     if [[ "$usage_os_q" == "?" ]] ; then

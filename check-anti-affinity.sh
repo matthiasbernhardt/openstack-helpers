@@ -23,12 +23,15 @@ rc=0
 
 server_list="$(dexec openstack server list $param_project -f value -c ID -c Name)"
 for infix in "$@" ; do
-  decho "infix: $infix"
-  id_prefix_list="$(echo "$server_list" | sed -ne 's/'"$infix"'.*$/ /p')"
-  #decho "id_prefix_list: $id_prefix_list"
-  prefixes=$(echo "$id_prefix_list" | cut -d " " -f 2 | sort | uniq)
-  for prefix in $prefixes ; do
-    decho "prefix: $prefix"
+  decho "infix: '$infix'"
+  id_prefix_list="$(echo "$server_list" | sed -nEe 's/(.{36} .*)'"$infix"'.*$/\1/p')"
+  decho "id_prefix_list: $id_prefix_list"
+  IFS="$(echo)"
+  prefixes=($(echo "$id_prefix_list" | cut -d " " -f 2 | sort | uniq))
+  unset IFS
+  decho "prefixes:" ${prefixes[@]} "(${#prefixes[@]})"
+  for prefix in ${prefixes[@]} ; do
+    decho "prefix: '$prefix'"
     ids=$(echo "$id_prefix_list" | awk 'BEGIN {ORS=" "} $2=="'$prefix'" {print $1}')
     decho "ids:" $ids
     hostids=$(

@@ -11,18 +11,14 @@ fi
 
 users=("$@")
 
-declare -A id2role role2id
-#eval id2role=(`openstack role list -f value | sed -nEe 's/^([0-9a-z]{32}) ([-_a-zA-Z0-9]+)$/[\1]=\2/p'`)
-eval role2id=(`openstack role list -f value | sed -nEe 's/^([0-9a-z]{32}) ([-_a-zA-Z0-9]+)$/[\2]=\1/p'`)
-
-roleid_operator="${role2id[operator]}"
-roleid_viewer="${role2id[viewer]}"
 for user in ${users[@]} ; do
   user_json="$(openstack user show -f json $user)"
   user_id="$(echo "$user_json" | jq -r ".id")"
   user_name="$(echo "$user_json" | jq -r ".name")"
-  user_enabled="$(echo "$user_json" | jq -r ".enabled")"
-  default_project_id="$(echo "$user_json" | jq -r ".default_project_id")"
+  user_enabled="$(echo "$user_json" | jq -er ".enabled")" || unset user_enabled
+  # if [ ! $? ] ; then echo unset user_enabled ; fi
+  default_project_id="$(echo "$user_json" | jq -er ".default_project_id")" || unset default_project_id
+  # if [ ! $? ] ; then unset default_project_id ; fi
   echo "user: ${user_name} (${user_id}, enabled:${user_enabled})"
 
   if [ -z "$user_name" -o -z "$user_id" ] ; then continue ; fi
@@ -43,7 +39,7 @@ for user in ${users[@]} ; do
   #   openstack --os-region $region --os-username $user_id --os-password $password --os-project-id '' --os-project-name $projectname keypair list
   # done
 
-  direct_projectids="$(openstack role assignment list -f value -c Project -c Role --user "$user_id" | awk  '$1=="'"${roleid_operator}"'" || $1=="'"${roleid_viewer}"'" { print $2 }' | sort | uniq | tr "\n" " ")"
+  direct_projectids="$(openstack role assignment list -f value -c Project --user "$user_id" | sort | uniq | tr "\n" " ")"
   echo "direct projectids: $direct_projectids"
 
   declare -A groupids2names
@@ -62,7 +58,7 @@ for user in ${users[@]} ; do
       else
         echo "    # openstack group remove user $groupname $user_name"
       fi
-      projectids="$(openstack role assignment list -f value -c Role -c Project --group "$groupid" | awk  '$1=="'"${roleid_operator}"'" || $1=="'"${roleid_viewer}"'" { print $2 }' | sort | uniq | tr "\n" " ")"
+      projectids="$(openstack role assignment list -f value -c Project --group "$groupid" | sort | uniq | tr "\n" " ")"
       echo "  group projectids: $projectids"
       groups_projectids+="$projectids"
     done
@@ -70,9 +66,18 @@ for user in ${users[@]} ; do
 
   all_projectids=$(echo $default_project_id $direct_projectids $groups_projectids | tr " " "\n" | sort | uniq | tr "\n" " ")
   echo "all projectids: $all_projectids"
-  for projectid in $all_projectids ; do
-    projectname="$(openstack project show -f value -c name $projectid)"
-    echo "  project: $projectname ($projectid)"
+  for project_id in $all_projectids ; do
+    project_json="$(openstack project show -f json $project_id)"
+    project_id="$(echo "$project_json" | jq -r ".id")"
+    project_name="$(echo "$project_json" | jq -r ".name")"
+    project_parent_id="$(echo "$project_json" | jq -r ".parent_id")"
+    project_description="$(echo "$project_json" | jq -r ".description")"
+
+    if [[ "$project_id" == "$project_name" ]] ; then
+      # syseleven-openstack-cloud / Keystone domain for customer projects (NCS)
+      project_name="$project_description"
+    fi
+    echo "  project: $project_name ($project_id)"
   done
 
 done

@@ -16,9 +16,12 @@ query_regions=(cbk dbl fes)
 
 
 for query_project in ${query_projects[@]} ; do
-  query_project_info=($(openstack project show -f value -c id -c name $query_project))
-  query_project_id="${query_project_info[0]}"
-  query_project_name="${query_project_info[1]}"
+  query_project_json="$(openstack project show -f json $query_project)"
+  query_project_id="$(echo "$query_project_json" | jq -r ".id")"
+  query_project_name="$(echo "$query_project_json" | jq -r ".name")"
+  query_project_parent_id="$(echo "$query_project_json" | jq -r ".parent_id")"
+  query_project_description="$(echo "$query_project_json" | jq -r ".description")"
+
   echo "# Project $query_project_name ($query_project_id)"
 
   if [ -z "$query_project_id" ] ; then continue ; fi

@@ -22,7 +22,7 @@ for query_project in ${query_projects[@]} ; do
   query_project_parent_id="$(echo "$query_project_json" | jq -r ".parent_id")"
   query_project_description="$(echo "$query_project_json" | jq -r ".description")"
 
-  echo "# Project $query_project_name ($query_project_id)"
+  echo "# Project $query_project_id ($query_project_name) $OS_REGION_NAME"
 
   if [ -z "$query_project_id" ] ; then continue ; fi
 
@@ -31,7 +31,7 @@ for query_project in ${query_projects[@]} ; do
   for service_id in "${service_ids[@]}" ; do
     service_json="$( dexec openstack vpn service show -f json $service_id )"
     service_name="$( echo "$service_json" | jq -r '.Name' )"
-    service_ip="$( echo "$service_json" | jq -r '.external_v4_ip' )"
+    service_ip="$( echo "$service_json" | jq -r '."Ext v4 IP"' )"
     service_subnet="$( echo "$service_json" | jq -r '.Subnet' )"
     echo "openstack vpn service show $service_id # '$service_name' <- ${service_ip}"
 
